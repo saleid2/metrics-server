@@ -52,10 +52,10 @@ var _ = Describe("Scraper", func() {
 		scrapeTime = time.Now()
 		nodeLister fakeNodeLister
 		client     fakeKubeletClient
-		node1      = makeNode("node1", "node1.somedomain", "10.0.1.2", true)
-		node2      = makeNode("node-no-host", "", "10.0.1.3", true)
-		node3      = makeNode("node3", "node3.somedomain", "10.0.1.4", false)
-		node4      = makeNode("node4", "node4.somedomain", "10.0.1.5", true)
+		node1      = makeNode("node1", "node1.somedomain", "10.0.1.2", true, false)
+		node2      = makeNode("node-no-host", "", "10.0.1.3", true, false)
+		node3      = makeNode("node3", "node3.somedomain", "10.0.1.4", false, false)
+		node4      = makeNode("node4", "node4.somedomain", "10.0.1.5", true, false)
 	)
 	BeforeEach(func() {
 		summary := &Summary{
@@ -271,7 +271,7 @@ func (l *fakeNodeLister) Get(name string) (*corev1.Node, error) {
 	return nil, fmt.Errorf("no such node %q", name)
 }
 
-func makeNode(name, hostName, addr string, ready bool) *corev1.Node {
+func makeNode(name, hostName, addr string, ready bool, useProxy bool) *corev1.Node {
 	res := &corev1.Node{
 		ObjectMeta: metav1.ObjectMeta{Name: name},
 		Status: corev1.NodeStatus{
@@ -291,6 +291,9 @@ func makeNode(name, hostName, addr string, ready bool) *corev1.Node {
 		res.Status.Conditions[0].Status = corev1.ConditionTrue
 	} else {
 		res.Status.Conditions[0].Status = corev1.ConditionFalse
+	}
+	if useProxy {
+		res.ObjectMeta.Labels = map[string]string{"usingMetricsProxy": "true"}
 	}
 	return res
 }

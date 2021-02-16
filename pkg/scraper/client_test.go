@@ -34,16 +34,17 @@ var _ = Describe("Client", func() {
 		httpClient       = mockServer.Client()
 		addrResolver     = utils.NewPriorityNodeAddressResolver([]corev1.NodeAddressType{corev1.NodeInternalIP})
 		kubeletClient    = makeKubelet(nodePort, httpClient, addrResolver, proxyServerAddr)
+		kubeletClientNP  = makeKubelet(nodePort, httpClient, addrResolver, "")
+		nodeWOProxy      = makeNode("node1", "node1.somedomain", nodeAddr, true, false)
+		nodeWProxy       = makeNode("node1", "node1.somedomain", nodeAddr, true, true)
 	)
 	BeforeEach(func() {
 		mockRecorder.Requests = []*http.Request{}
 	})
-	Context("when node doesn't have label to use proxy", func() {
+	Context("when node doesn't have label to use proxy and Kubeletclient has a proxy defined", func() {
 		It("should connect to the node directly", func() {
 			By("invoking GetSummary with a context timeout of 5 seconds")
-			nodeWOProxy := makeNode("node1", "node1.somedomain", nodeAddr, true, false)
-
-			timeoutCtx, doneWithWork := context.WithTimeout(context.Background(), 4*time.Second)
+			timeoutCtx, doneWithWork := context.WithTimeout(context.Background(), 5*time.Second)
 			_, err := kubeletClient.GetSummary(timeoutCtx, nodeWOProxy)
 			doneWithWork()
 			Expect(err).NotTo(HaveOccurred())
@@ -59,12 +60,10 @@ var _ = Describe("Client", func() {
 					Not(ContainSubstring("nodePort="))))
 		})
 	})
-	Context("when node has label to use proxy", func() {
+	Context("when node has label to use proxy and KubeletClient has proxy defined", func() {
 		It("should connect to the proxy instead of the node", func() {
 			By("invoking GetSummary with a context timeout of 5 seconds")
-			nodeWProxy := makeNode("node1", "node1.somedomain", nodeAddr, true, true)
-
-			timeoutCtx, doneWithWork := context.WithTimeout(context.Background(), 4*time.Second)
+			timeoutCtx, doneWithWork := context.WithTimeout(context.Background(), 5*time.Second)
 			_, err := kubeletClient.GetSummary(timeoutCtx, nodeWProxy)
 			doneWithWork()
 			Expect(err).NotTo(HaveOccurred())
@@ -84,6 +83,44 @@ var _ = Describe("Client", func() {
 
 			By("ensuring that NodePort is correct")
 			Expect(mockRecorder.Requests[0].URL.RawQuery).To(ContainSubstring(fmt.Sprint("nodePort=", nodePort)))
+		})
+	})
+	Context("when node doesn't have label to use proxy and no proxy is declared on KubeletClient", func() {
+		It("should fallback to default behaviour and try to connect to the node directly", func() {
+			By("invoking GetSummary with a context timeout of 5 seconds")
+			timeoutCtx, doneWithWork := context.WithTimeout(context.Background(), 5*time.Second)
+			_, err := kubeletClientNP.GetSummary(timeoutCtx, nodeWOProxy)
+			doneWithWork()
+			Expect(err).NotTo(HaveOccurred())
+
+			By("ensuring only 1 request was received by the mock server")
+			Expect(mockRecorder.Requests).Should(HaveLen(1))
+
+			By("ensuring that request only contains parameter only_cpu_and_memory=true and not nodeIp nor nodePort")
+			Expect(mockRecorder.Requests[0].URL.RawQuery).To(
+				SatisfyAll(
+					ContainSubstring("only_cpu_and_memory=true"),
+					Not(ContainSubstring("nodeIp=")),
+					Not(ContainSubstring("nodePort="))))
+		})
+	})
+	Context("when node has label to use proxy and no proxy is declared on KubeletClient", func() {
+		It("should fallback to default behaviour and try to connect to the node directly", func() {
+			By("invoking GetSummary with a context timeout of 5 seconds")
+			timeoutCtx, doneWithWork := context.WithTimeout(context.Background(), 5*time.Second)
+			_, err := kubeletClientNP.GetSummary(timeoutCtx, nodeWProxy)
+			doneWithWork()
+			Expect(err).NotTo(HaveOccurred())
+
+			By("ensuring only 1 request was received by the mock server")
+			Expect(mockRecorder.Requests).Should(HaveLen(1))
+
+			By("ensuring that request only contains parameter only_cpu_and_memory=true and not nodeIp nor nodePort")
+			Expect(mockRecorder.Requests[0].URL.RawQuery).To(
+				SatisfyAll(
+					ContainSubstring("only_cpu_and_memory=true"),
+					Not(ContainSubstring("nodeIp=")),
+					Not(ContainSubstring("nodePort="))))
 		})
 	})
 })
@@ -123,9 +160,7 @@ type MockServerRecorder struct {
 }
 
 func newMockServer(recorder *MockServerRecorder, procedures ...MockServerProcedure) *httptest.Server {
-	var handler http.Handler
-
-	handler = http.HandlerFunc(
+	handler := http.HandlerFunc(
 		func(w http.ResponseWriter, r *http.Request) {
 			if r != nil {
 				recorder.Requests = append(recorder.Requests, r)
@@ -145,7 +180,6 @@ func newMockServer(recorder *MockServerRecorder, procedures ...MockServerProcedu
 				}
 			}
 			w.WriteHeader(http.StatusNotFound)
-			return
 		})
 
 	return httptest.NewServer(handler)

@@ -100,7 +100,7 @@ func (kc *kubeletClient) GetSummary(ctx context.Context, node *corev1.Node) (*Su
 	var rawQuery string
 	if useProxy, _ := strconv.ParseBool(node.ObjectMeta.Labels["usingMetricsProxy"]); useProxy && kc.KubeletProxyServerAddress != "" {
 		host = kc.KubeletProxyServerAddress
-		rawQuery = fmt.Sprintf("only_cpu_and_memory=true&nodeIp=%v&nodePort=%v", addr, nodeStatusPort)
+		rawQuery = fmt.Sprintf("only_cpu_and_memory=true&nodeIp=%v&nodePort=%v", addr, port)
 	} else {
 		host = net.JoinHostPort(addr, strconv.Itoa(port))
 		rawQuery = "only_cpu_and_memory=true"
