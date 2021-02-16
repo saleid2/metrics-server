@@ -28,11 +28,12 @@ import (
 
 // KubeletClientConfig represents configuration for connecting to Kubelets.
 type KubeletClientConfig struct {
-	Client              rest.Config
-	AddressTypePriority []corev1.NodeAddressType
-	Scheme              string
-	DefaultPort         int
-	UseNodeStatusPort   bool
+	Client                    rest.Config
+	AddressTypePriority       []corev1.NodeAddressType
+	Scheme                    string
+	DefaultPort               int
+	UseNodeStatusPort         bool
+	KubeletProxyServerAddress string
 }
 
 // Complete constructs a new kubeletCOnfig for the given configuration.
@@ -46,11 +47,12 @@ func (config KubeletClientConfig) Complete() (*kubeletClient, error) {
 		Transport: transport,
 	}
 	return &kubeletClient{
-		addrResolver:      utils.NewPriorityNodeAddressResolver(config.AddressTypePriority),
-		defaultPort:       config.DefaultPort,
-		client:            c,
-		scheme:            config.Scheme,
-		useNodeStatusPort: config.UseNodeStatusPort,
+		addrResolver:              utils.NewPriorityNodeAddressResolver(config.AddressTypePriority),
+		defaultPort:               config.DefaultPort,
+		client:                    c,
+		scheme:                    config.Scheme,
+		useNodeStatusPort:         config.UseNodeStatusPort,
+		KubeletProxyServerAddress: config.KubeletProxyServerAddress,
 		buffers: sync.Pool{
 			New: func() interface{} {
 				return new(bytes.Buffer)

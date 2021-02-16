@@ -39,12 +39,13 @@ type KubeletInterface interface {
 }
 
 type kubeletClient struct {
-	defaultPort       int
-	useNodeStatusPort bool
-	client            *http.Client
-	scheme            string
-	addrResolver      utils.NodeAddressResolver
-	buffers           sync.Pool
+	defaultPort               int
+	useNodeStatusPort         bool
+	client                    *http.Client
+	scheme                    string
+	addrResolver              utils.NodeAddressResolver
+	buffers                   sync.Pool
+	KubeletProxyServerAddress string
 }
 
 var _ KubeletInterface = (*kubeletClient)(nil)
@@ -94,11 +95,22 @@ func (kc *kubeletClient) GetSummary(ctx context.Context, node *corev1.Node) (*Su
 	if err != nil {
 		return nil, fmt.Errorf("unable to extract connection information for node %q: %v", node.Name, err)
 	}
+
+	var host string
+	var rawQuery string
+	if useProxy, _ := strconv.ParseBool(node.ObjectMeta.Labels["usingMetricsProxy"]); useProxy && kc.KubeletProxyServerAddress != "" {
+		host = kc.KubeletProxyServerAddress
+		rawQuery = fmt.Sprintf("only_cpu_and_memory=true&nodeIp=%v&nodePort=%v", addr, nodeStatusPort)
+	} else {
+		host = net.JoinHostPort(addr, strconv.Itoa(port))
+		rawQuery = "only_cpu_and_memory=true"
+	}
+
 	url := url.URL{
 		Scheme:   kc.scheme,
-		Host:     net.JoinHostPort(addr, strconv.Itoa(port)),
+		Host:     host,
 		Path:     "/stats/summary",
-		RawQuery: "only_cpu_and_memory=true",
+		RawQuery: rawQuery,
 	}
 
 	req, err := http.NewRequest("GET", url.String(), nil)

@@ -58,6 +58,8 @@ type Options struct {
 	KubeletClientKeyFile         string
 	KubeletClientCertFile        string
 
+	KubeletProxyServerAddress string
+
 	ShowVersion bool
 
 	DeprecatedCompletelyInsecureKubelet bool
@@ -103,6 +105,7 @@ func (o *Options) Flags(cmd *cobra.Command) {
 	flags.StringVar(&o.KubeletCAFile, "kubelet-certificate-authority", "", "Path to the CA to use to validate the Kubelet's serving certificates.")
 	flags.StringVar(&o.KubeletClientKeyFile, "kubelet-client-key", "", "Path to a client key file for TLS.")
 	flags.StringVar(&o.KubeletClientCertFile, "kubelet-client-certificate", "", "Path to a client cert file for TLS.")
+	flags.StringVar(&o.KubeletProxyServerAddress, "", "kubelet-proxy-server-address", "URL of Reverse Proxy used to reach on-prem nodes.")
 
 	flags.BoolVar(&o.ShowVersion, "version", false, "Show version")
 
@@ -200,11 +203,12 @@ func (o Options) restConfig() (*rest.Config, error) {
 
 func (o Options) kubeletConfig(restConfig *rest.Config) *scraper.KubeletClientConfig {
 	config := &scraper.KubeletClientConfig{
-		Scheme:              "https",
-		DefaultPort:         o.KubeletPort,
-		AddressTypePriority: o.addressResolverConfig(),
-		UseNodeStatusPort:   o.KubeletUseNodeStatusPort,
-		Client:              *rest.CopyConfig(restConfig),
+		Scheme:                    "https",
+		DefaultPort:               o.KubeletPort,
+		AddressTypePriority:       o.addressResolverConfig(),
+		UseNodeStatusPort:         o.KubeletUseNodeStatusPort,
+		Client:                    *rest.CopyConfig(restConfig),
+		KubeletProxyServerAddress: o.KubeletProxyServerAddress,
 	}
 	if o.DeprecatedCompletelyInsecureKubelet {
 		config.Scheme = "http"
