@@ -105,7 +105,7 @@ func (o *Options) Flags(cmd *cobra.Command) {
 	flags.StringVar(&o.KubeletCAFile, "kubelet-certificate-authority", "", "Path to the CA to use to validate the Kubelet's serving certificates.")
 	flags.StringVar(&o.KubeletClientKeyFile, "kubelet-client-key", "", "Path to a client key file for TLS.")
 	flags.StringVar(&o.KubeletClientCertFile, "kubelet-client-certificate", "", "Path to a client cert file for TLS.")
-	flags.StringVar(&o.KubeletProxyServerAddress, "", "kubelet-proxy-server-address", "URL of Reverse Proxy used to reach on-prem nodes.")
+	flags.StringVar(&o.KubeletProxyServerAddress, "kubelet-proxy-server-address", "", "URL of Reverse Proxy used to reach on-prem nodes.")
 
 	flags.BoolVar(&o.ShowVersion, "version", false, "Show version")
 
